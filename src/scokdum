@@ -1,0 +1,70 @@
+// import { Server } from 'socket.io';
+
+// let UserMap = {};  // Store users by room
+
+// const setupSocket = (httpServer) => {
+//   const io = new Server(httpServer, {
+//     cors: {
+//       origin: '*',  // Allow connections from all sources
+//       methods: ['GET', 'POST'],
+//     },
+//   });
+
+//   io.on('connection', (socket) => {
+//     console.log('A user connected, socket.id:', socket.id);
+
+//     socket.on('join_chat', ({ username, roomName }) => {
+//       // Check if username or roomName is missing
+//         if (!username || !roomName) {
+//           console.log('Error: Missing username or roomName');
+//           return; // Stop the process if either is missing
+//         }
+
+//         // Log that the user joined the room
+//         console.log(`User ${username} joined chat room: ${roomName}`);
+
+//         // Add the user to the room
+//         socket.join(roomName); // Creates the room and adds the user's socket to it
+
+//         // If the room doesn't exist in UserMap, create it
+//         if (!UserMap[roomName]) {
+//           UserMap[roomName] = []; // Initialize the room with an empty array
+//         }
+
+//         // Add the user and their socketId to the room in UserMap
+//         UserMap[roomName].push({ username, socketId: socket.id });
+
+//     });
+    
+
+//     socket.on('send_message', (msg) => {
+//       if (msg.to && UserMap[msg.to]) {  // Check if the room exists
+//         const roomUsers = UserMap[msg.to];  // Get users in the room
+//         roomUsers.forEach(user => {  // Loop through each user in the room
+//           io.to(user.socketId).emit('receive_message', msg);  // Send the message to each user's socket by socketId
+//         });
+//       }
+//     });
+    
+
+//     socket.on('disconnect', () => {
+//       console.log('A user disconnected');
+      
+//       for (const [roomName, users] of Object.entries(UserMap)) {
+//         const userIndex = users.findIndex(user => user.socketId === socket.id);
+    
+//         if (userIndex > -1) {
+//           const user = users[userIndex];
+//           users.splice(userIndex, 1);  // Remove the user from the room
+//           console.log(`User ${user.username} disconnected from room: ${roomName}`);
+//           break;
+//         }
+//       }
+    
+//       console.log('Updated UserMap:', UserMap);
+//     });
+    
+//   });
+// };
+
+// export default setupSocket;
