@@ -1,0 +1,61 @@
+import { Server } from "socket.io";
+
+const setupSocket = (httpServer) => {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*", // Change to your frontend URL in production
+      methods: ["GET", "POST"],
+    },
+  });
+
+  const connectedUsers = {};
+
+  io.on("connection", (socket) => {
+    console.log("A user connected, socket.id:", socket.id);
+
+    // Handle user registration
+    socket.on("register_user", (userId) => {
+      if (connectedUsers[userId]) {
+        console.log(
+          `User ${userId} is already connected. Replacing old socket.`
+        );
+      }
+      connectedUsers[userId] = socket.id; // Map userId to the new socket ID
+      console.log(`User registered: ${userId} with socket.id: ${socket.id}`);
+      console.log({ connectedUsers }); // Log updated users
+    });
+
+    // Handle sending messages
+    socket.on("send_message", async (msg) => {
+      console.log("Received message on server:", msg);
+      const receiverSocketId = connectedUsers[msg.receiver];
+
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("receive_msg", msg);
+        console.log(`Message sent to ${msg.receiver}:`, msg);
+      } else {
+        console.log(
+          `Receiver ${msg.receiver} not connected. Storing message...`
+        );
+        // Optionally queue messages for offline users
+      }
+    });
+
+    // Handle user disconnect
+    socket.on("disconnect", () => {
+      const userId = Object.keys(connectedUsers).find(
+        (key) => connectedUsers[key] === socket.id
+      );
+
+      if (userId) {
+        delete connectedUsers[userId]; // Remove the user from the map
+        console.log(`User ${userId} disconnected.`);
+        console.log({ connectedUsers }); // Log updated users
+      } else {
+        console.log(`Unknown socket disconnected: ${socket.id}`);
+      }
+    });
+  });
+};
+
+export default setupSocket;

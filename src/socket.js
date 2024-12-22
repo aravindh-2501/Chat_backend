@@ -1,50 +1,64 @@
-import { Server } from 'socket.io';
-import Message from './model/message-model.js';
+import { Server } from "socket.io";
 
 const setupSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
+      origin: "*",
+      methods: ["GET", "POST"],
     },
   });
 
-  const connectedUsers = {}; // Map to track connected users
+  // To store connected users' socket ids by their userId
+  const connectedUsers = {};
 
-  io.on('connection', (socket) => {
-    // console.log('A user connected, socket.id:', socket.id);
+  io.on("connection", (socket) => {
+    console.log("A user connected, socket.id:", socket.id);
 
-    // Handle user registration
-    socket.on('register_user', (userId) => {
-      connectedUsers[userId] = socket.id;
-      // console.log(`User registered: ${userId} with socket.id: ${socket.id}`);
-    });
-
-    socket.on('send_message', async (msg) => {
-      // console.log('Received message:', msg);
-      try {
-        // Send the message to the receiver if they're connected
-        const receiverSocketId = connectedUsers[msg.receiver];
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit('receive_msg', msg);
-        } else {
-          // console.log(`Receiver ${msg.receiver} is not connected.`);
-        }
-      } catch (error) {
-        console.error(error);
-        socket.emit('error', 'Failed to send message');
+    // Register user by userId when they connect
+    socket.on("register_user", (data) => {
+      console.log("User registered:", data);
+      if (data?.userId) {
+        connectedUsers[data.userId] = socket.id;
+        console.log("Updated connectedUsers:", connectedUsers);
+      } else {
+        console.error("No userId provided in register_user");
       }
     });
 
-    socket.on('disconnect', () => {
-      // Remove disconnected users from the map
-      for (const [userId, socketId] of Object.entries(connectedUsers)) {
-        if (socketId === socket.id) {
+    // Listen for send_message events
+    socket.on("send_message", (msg) => {
+      console.log("Message received:", msg);
+
+      const receiverId = msg.receiver;
+      if (!receiverId) {
+        console.error("No receiverId in message");
+        return;
+      }
+
+      // Get the receiver's socket ID from connected users
+      const receiverSocketId = connectedUsers[receiverId];
+      if (receiverSocketId) {
+        console.log(
+          `Sending message to userId: ${receiverId}, socketId: ${receiverSocketId}`
+        );
+        // Emit the message to the receiver
+        socket.to(receiverSocketId).emit("receive_message", msg);
+      } else {
+        console.error(`Receiver with userId: ${receiverId} not connected`);
+      }
+    });
+
+    // Clean up when a user disconnects
+    socket.on("disconnect", () => {
+      // Remove the user from the connectedUsers object when they disconnect
+      for (const userId in connectedUsers) {
+        if (connectedUsers[userId] === socket.id) {
+          console.log(`User with userId: ${userId} disconnected`);
           delete connectedUsers[userId];
           break;
         }
       }
-      // console.log(`Socket disconnected: ${socket.id}`);
+      console.log("Updated connectedUsers after disconnect:", connectedUsers);
     });
   });
 };
