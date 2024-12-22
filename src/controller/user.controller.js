@@ -27,19 +27,19 @@ const isValidEmail = (email) => {
 const register = async (req, res) => {
   const { username, email, password } = req.body;
   try {
-    console.log("REGISTER", username, email, password);
+    // console.log("REGISTER", username, email, password);
 
     // Check if the username already exists
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
-      console.log("Username already taken");
+      // console.log("Username already taken");
       return res.status(400).json({ error: "Username already taken" });
     }
 
     // Check if the email already exists
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      console.log("Email already registered"); // Debugging
+      // console.log("Email already registered"); // Debugging
       return res.status(400).json({ error: "Email already registered" });
     }
 
