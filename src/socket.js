@@ -35,6 +35,14 @@ const setupSocket = (httpServer) => {
         return;
       }
 
+      socket.on("typing", ({ senderId, receiverId }) => {
+        socket.to(receiverId).emit("typing", { senderId });
+      });
+
+      socket.on("stop_typing", ({ senderId, receiverId }) => {
+        socket.to(receiverId).emit("stop_typing", { senderId });
+      });
+
       // Get the receiver's socket ID from connected users
       const receiverSocketId = connectedUsers[receiverId];
       if (receiverSocketId) {
