@@ -1,30 +1,46 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const { Schema, model } = mongoose;
 
-// Define the Message Schema
 const MessageSchema = new Schema(
   {
-    sender: {
+    senderId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', 
+      ref: "User",
       required: true,
     },
-    receiver: {
+    receiverId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     text: {
       type: String,
       required: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
+    },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt timestamps automatically
+    timestamps: true,
   }
 );
 
+MessageSchema.virtual("messageId").get(function () {
+  return this._id.toString();
+});
+
+// Optionally, include virtuals when converting to JSON
+MessageSchema.set("toJSON", {
+  virtuals: true,
+});
 
 const Message = model("Message", MessageSchema);
 

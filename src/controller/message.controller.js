@@ -1,27 +1,41 @@
 import Message from "../model/message-model.js";
 
-// Function to send a message
 const sendMessage = async (req, res) => {
-  const { sender, receiver, text } = req.body;
-  // console.log({sender, receiver, text})
+  const { senderId, receiverId, text } = req.body;
   try {
-    const newMessage = await Message.create({ sender, receiver, text });
-    res.status(200).json({ message: newMessage });
+    const newMessage = new Message({
+      senderId,
+      receiverId,
+      text,
+    });
+
+    await newMessage.save();
+
+    // console.log("New message created:", newMessage);
+
+    res.status(200).json({
+      message: {
+        messageId: newMessage.messageId,
+        senderId,
+        receiverId,
+        text,
+        status: newMessage.status,
+        timestamp: newMessage.createdAt,
+      },
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Error sending message:", error);
     res.status(500).json({ error: "Failed to send message" });
   }
 };
 
-// Function to get the conversation between two users
 const getConvo = async (req, res) => {
   const { id } = req.params;
   try {
-    // Retrieve all messages between the two users
     const messages = await Message.find({
       $or: [
-        { sender: id, receiver: req.query.receiver },
-        { sender: req.query.receiver, receiver: id },
+        { senderId: id, receiverId: req.query.receiver },
+        { senderId: req.query.receiver, receiverId: id },
       ],
     }).sort({ createdAt: 1 });
 
@@ -32,4 +46,43 @@ const getConvo = async (req, res) => {
   }
 };
 
-export default { sendMessage, getConvo };
+export const markMessageAsDelivered = async (req, res) => {
+  const { messageId, status } = req.body;
+
+  try {
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedMessage) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Error updating message status:", error);
+    res.status(500).json({ error: "Failed to update status" });
+  }
+};
+
+const deleteMessage = async (req, res) => {
+  const messageId = req.params.id;
+  try {
+    if (!messageId) {
+      return res.status(404).json({ error: "Message Id not found" });
+    }
+    const message = await Message.findByIdAndUpdate(
+      messageId,
+      {
+        isDeleted: true,
+      },
+      { new: true }
+    );
+
+    res.status(200).json({ success: true, message: message });
+  } catch (error) {}
+};
+
+export default { sendMessage, getConvo, markMessageAsDelivered, deleteMessage };

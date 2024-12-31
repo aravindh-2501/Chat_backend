@@ -1,14 +1,11 @@
 import {
-  EMAIL_ALREADY_REGISTERED,
   LOGIN_SUCCESS,
-  REGISTRATION_SUCCESS,
   SERVER_ERROR,
   USER_NOT_FOUND,
   INVALID_CREDENTIALS,
 } from "../constant/messages.js";
 import {
   BAD_REQUEST,
-  CREATED,
   INTERNAL_SERVER_ERROR,
   OK,
   UNAUTHORIZED,
@@ -75,6 +72,8 @@ const login = async (req, res) => {
       return res.status(UNAUTHORIZED).json({ error: USER_NOT_FOUND });
     }
 
+    console.log({ existingUser });
+
     const isMatch = await bcrypt.compare(password, existingUser.password);
     if (!isMatch) {
       return res.status(UNAUTHORIZED).json({ error: INVALID_CREDENTIALS });
@@ -87,6 +86,7 @@ const login = async (req, res) => {
         _id: existingUser._id,
         email: existingUser.email,
         username: existingUser.username,
+        avatar: existingUser.avatar,
       },
       token,
       msg: LOGIN_SUCCESS,
@@ -109,7 +109,7 @@ const getAllUsers = async (req, res) => {
     const users = await User.find({ _id: { $ne: loggedInUserId } }).select(
       "-password"
     );
-
+    console.log("getAllusers", users);
     res.status(OK).json({ data: users, msg: "Users retrieved successfully" });
   } catch (error) {
     console.error("Error retrieving users:", error);
@@ -125,37 +125,78 @@ const getUsersWithConversation = async (req, res) => {
     const loggedInUserId = req.query.userId;
 
     if (!loggedInUserId) {
-      return res.status(BAD_REQUEST).json({ msg: "User ID is required" });
+      return res.status(400).json({ msg: "User ID is required" });
     }
 
+    // Find messages where the logged-in user is either sender or receiver
     const usersWithConvo = await Message.find({
-      $or: [{ sender: loggedInUserId }, { receiver: loggedInUserId }],
+      $or: [{ senderId: loggedInUserId }, { receiverId: loggedInUserId }],
     });
 
-    const uniqueUsers = usersWithConvo.map((msg) => {
-      return msg.sender._id.toString() === loggedInUserId.toString()
-        ? msg.receiver
-        : msg.sender;
-    });
+    if (usersWithConvo.length === 0) {
+      return res.status(200).json({
+        data: [],
+        msg: "No conversations found for this user",
+      });
+    }
+
+    // Extract unique user IDs from conversations
+    const uniqueUsers = usersWithConvo.map((msg) =>
+      msg.senderId.toString() === loggedInUserId.toString()
+        ? msg.receiverId
+        : msg.senderId
+    );
 
     const uniqueUserIds = [
       ...new Set(uniqueUsers.map((user) => user.toString())),
     ];
 
+    // Fetch user details excluding the logged-in user
     const users = await User.find({
-      _id: { $in: uniqueUserIds, $ne: loggedInUserId },
+      _id: { $in: uniqueUserIds },
     });
 
-    res.status(OK).json({
+    console.log("uniqueryIds", users);
+    res.status(200).json({
       data: users,
       msg: "Users with conversation retrieved successfully",
     });
   } catch (error) {
     console.error("Error retrieving users with conversation:", error);
-    res.status(INTERNAL_SERVER_ERROR).json({
+    res.status(500).json({
       msg: "An error occurred while retrieving users with conversation",
     });
   }
 };
 
-export default { login, register, getAllUsers, getUsersWithConversation };
+const updateProfile = async (req, res) => {
+  const { id } = req.params;
+  const { avatar, username } = req.body;
+
+  try {
+    const user = await User.findOneAndUpdate(
+      { _id: id },
+      { avatar, username },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log({ user });
+
+    res.status(200).json({ message: "Profile updated successfully", user });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Error updating profile" });
+  }
+};
+
+export default {
+  login,
+  register,
+  getAllUsers,
+  getUsersWithConversation,
+  updateProfile,
+};
